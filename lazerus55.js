@@ -207,5 +207,5 @@ define(function() {
     $window.trigger("pagecontainercreate");
   });
 
-  return retrurnable;
+  return returnable;
 });
