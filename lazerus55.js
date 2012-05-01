@@ -1,10 +1,10 @@
 /*
-Stephen Pond - 2012
-jQuery Mobile fallback for IE5.5, 
-polyfills for enhancing elements, checkboxes, disclosures, quantity inputs, etc...
-*/
+   Stephen Pond - 2012
+   jQuery Mobile fallback for IE5.5,
+   polyfills for enhancing elements, checkboxes, disclosures, quantity inputs, etc...
+   */
 define(function() {
-   polyfill1 = function() {
+    var polyfill1 = function() {
 		//TODO convert this to grid
 		var setupClickForCheckboxRow = function(tr) {
 			var td = tr.find('label').parent();
@@ -16,13 +16,16 @@ define(function() {
 		},
 		enhanceInputsAndLabels = function(inputs, labels) {
 			var ct = document.createElement('DIV'),
-			rows = "";
+			rows = "",
+			clsLast,
+			totalInputs = inputs.length;
 			inputs.each(function(index, input) {
-				rows += '<tr><td><input name="' + input.name + '" type="checkbox"/></td><td style="width=100%"><label>' + labels[index].innerHTML + '</label></td></tr>';
+				clsLast = (totalInputs == index + 1) ? 'class="last"': '';
+				rows += '<tr><td width="25" ' + clsLast + '><input name="' + input.name + '" type="checkbox"/></td><td ' + clsLast + '><label>' + labels[index].innerHTML + '</label></td></tr>';
 				$(input).hide();
 				$(labels[index]).hide();
 			});
-			$(ct).html('<table class="checkbox">' + rows + '</table>')
+			$(ct).html('<table class="checkbox" cellpadding="0" cellspacing="0">' + rows + '</table>')
 			inputs[0].parentNode.insertBefore(ct, inputs[0]);
 			$(ct).find('tr').each(function(index, tr) {
 				setupClickForCheckboxRow($(tr));
@@ -82,48 +85,6 @@ define(function() {
 		hideables.toggleClass('ie55hide');
 	},
 
-	polyfill3 = function(el, state) {
-		el = $(el);
-		if (el.parent().find('#add').length === 0) {
-			var ct = document.createElement('DIV');
-			ct.innerHTML = '<input type="button" id="add" value="+" /><input id="qty" value="' + (el[0].value || 0) + '" /><input type="button"id="minus" value="-" /></div>';
-			el[0].parentNode.insertBefore(ct, el[0]);
-			el.hide();
-
-			var children = $(ct).children(),
-			child0 = $(children[0]),
-			child1 = $(children[1]),
-			child2 = $(children[2]),
-			add = child0.button ? child0.button() : child0,
-			qty = child1.textinput ? child1.textinput().addClass('qty-field') : child1.addClass('qty-field'),
-			minus = child2.button ? child2.button() : child2;
-			add.parent('div').addClass('qty-btn');
-			minus.parent('div').addClass('qty-btn');
-
-			add.click(function() {
-				var currentVal = parseInt(qty.val());
-				if (currentVal != NaN) {
-					el.val(currentVal + 1);
-					qty.val(currentVal + 1);
-					//    qty.trigger('change');
-				}
-			});
-			minus.click(function() {
-				var currentVal = parseInt(qty.val());
-				if (currentVal != NaN && currentVal > - 1) {
-					el.val(currentVal - 1);
-					qty.val(currentVal - 1);
-					//  qty.trigger('change');
-				}
-			});
-		}
-		if (state) {
-			el.parent().find('#add').button(state);
-			el.parent().find('#minus').button(state);
-			el.parent().find('#qty').textinput(state);
-			return;
-		}
-	},
 	polyfill4 = function(select, pairs, handler) {
 		var transformUlToSelect = function(ul) {
 			var selectEl = document.createElement('SELECT');
@@ -161,51 +122,63 @@ define(function() {
 		}
 	},
 	enhancePage = function() {
-		$('body').find('ul,div').each(function(index, div) {
-			if (div.getAttribute('data-role') === 'controlgroup' && $(div).find('input').length > 1) return polyfill1(div);
-			if (div.getAttribute('data-role') === 'collapsible') return polyfill2(div);
-			if (div.getAttribute('data-role') === 'quantity') return polyfill3(div);
-			if (div.getAttribute('data-role') === 'listview') return polyfill5(div);
-		});
-	};
+	  $('body').find('ul,div').each(function(index, div) {
+		if (div.getAttribute('data-role') === 'controlgroup' && $(div).find('input').length > 0) return polyfill1(div);
+		if (div.getAttribute('data-role') === 'collapsible') return polyfill2(div);
+		//TODO need to mixin quantity for this & regular jqmobile strategy
+		if (div.getAttribute('data-role') === 'listview') return polyfill5(div);
+		//TODO need data-role=button
+	  });
+      var event = $.Event( event );
+      event.type = "create";
+      $(document).trigger(event);
+	},
 
-	var returnable = {
+  returnable = {
 		checkbox: polyfill1,
 		disclosure: polyfill2,
-		quantity: polyfill3,
-		select: polyfill4,
 		list: polyfill5,
-		enhancePage: enhancePage
+		enhancePage: enhancePage,
+		//TODO 
+		showPageLoadingMsg: $.noop
 	};
 
 	if (window.$) {
 		window.$.mobile = returnable;
-  }
+	}
 
-  /// THE FOLLOWING CODE IS EXPERIMENTAL AND GLEAMED FROM THE JQUERY MOBILE PROJECT 1.0.1
-  // (IF THIS IS A LEGAL PROBLEM, THEN WE WILL REMOVE)
+	/// THE FOLLOWING CODE IS EXPERIMENTAL AND GLEAMED FROM THE JQUERY MOBILE PROJECT 1.0.1
+	// (IF THIS IS A LEGAL PROBLEM, THEN WE WILL REMOVE)
+	// References
+	var $window = $(window),
+	$document = $(window.document),
+	$mobile = $.mobile,
+	$startPage,
+	$pageContainer;
 
-  // References
-  var $window   = $( window ),
-      $document = $( window.document ),
-      $mobile   = $.mobile,
-      $startPage, $pageContainer;
+	// trigger mobileinit event - useful hook for configuring $.mobile settings before they're used
+	$document.trigger("mobileinit");
 
-  // trigger mobileinit event - useful hook for configuring $.mobile settings before they're used
-  $document.trigger( "mobileinit" );
+	$document.ready(function() {
+		var $pages = $("[data-role='page']");
 
-  $document.ready(function(){
-    var $pages = $("[data-role='page']");
+		// define the first page
+		$startPage = $mobile.firstPage = $pages.first();
 
-    // define the first page
-    $startPage = $mobile.firstPage = $pages.first();
+		// define the PageContainer to use and add the appropriate class
+		$mobile.pageContainer = $startPage.parent().addClass("ui-mobile-viewport");
 
-    // define the PageContainer to use and add the appropriate class
-    $mobile.pageContainer = $startPage.parent().addClass("ui-mobile-viewport");
-
-    // dispatch the "pagecontainercreate" event
-    $window.trigger("pagecontainercreate");
-  });
-
-  return returnable;
+		// dispatch the "pagecontainercreate" event
+		$window.trigger("pagecontainercreate");
+	});
+	//TODO need to make jqMobile equivalent
+	(function($) {
+		$.fn.button = function(state) {
+			if (state === 'disabled') this.get(0).setAttribute('disabled', state);
+			else this.get(0).removeAttribute('disabled');
+			return this;
+			// Do your awesome plugin stuff here
+		};
+	})(jQuery);
+	return returnable;
 });
